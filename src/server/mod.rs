@@ -34,6 +34,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/v1/chat/completions", post(handle_chat_completions))
         .route("/v1/models", get(list_models))
         .route("/health", get(health))
+        .route("/stats", get(stats_handler))
         .with_state(state)
 }
 
@@ -245,4 +246,8 @@ async fn list_models() -> Json<serde_json::Value> {
 
 async fn health() -> Json<serde_json::Value> {
     Json(serde_json::json!({ "status": "ok" }))
+}
+
+async fn stats_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    Json((*state.metrics).snapshot())
 }
