@@ -31,8 +31,17 @@ pub struct AppState {
 
 pub fn create_router(state: Arc<AppState>) -> Router {
     Router::new()
+        // OpenAI 兼容
         .route("/v1/chat/completions", post(handle_chat_completions))
         .route("/v1/models", get(list_models))
+        .route("/chat/completions", post(handle_chat_completions))
+        .route("/models", get(list_models))
+        // Ollama 兼容
+        .route("/api/show", post(ollama_show))
+        .route("/api/generate", post(handle_chat_completions))
+        .route("/api/chat", post(handle_chat_completions))
+        .route("/api/tags", get(list_models))
+        // 内部
         .route("/health", get(health))
         .route("/stats", get(stats_handler))
         .with_state(state)
@@ -250,4 +259,30 @@ async fn health() -> Json<serde_json::Value> {
 
 async fn stats_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     Json((*state.metrics).snapshot())
+}
+
+async fn ollama_show(
+    State(_state): State<Arc<AppState>>,
+    Json(body): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
+    let model = body.get("name").and_then(|v| v.as_str()).unwrap_or("unknown");
+    Json(serde_json::json!({
+        "license": "",
+        "modelfile": "",
+        "parameters": "",
+        "template": "",
+        "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "xingdu",
+            "families": ["xingdu"],
+            "parameter_size": "proxy",
+            "quantization_level": "Q4_0",
+        },
+        "model_info": {
+            "general.architecture": "xingdu",
+            "general.name": model,
+        },
+        "name": model,
+    }))
 }
