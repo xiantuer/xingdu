@@ -41,6 +41,11 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/generate", post(handle_chat_completions))
         .route("/api/chat", post(handle_chat_completions))
         .route("/api/tags", get(list_models))
+        .route("/api/v1/models", get(list_models))
+        .route("/api/v1/chat/completions", post(handle_chat_completions))
+        .route("/v1/props", get(generic_ok))
+        .route("/props", get(generic_ok))
+        .route("/version", get(version_handler))
         // 内部
         .route("/health", get(health))
         .route("/stats", get(stats_handler))
@@ -152,13 +157,19 @@ async fn handle_chat_completions(
                 let stream = stream.map(|chunk| {
                     let bytes = match chunk {
                         Ok(b) => b,
-                        Err(_) => return Ok::<_, Infallible>(Event::default().data("data: [DONE]")),
+                        Err(_) => return Ok::<_, Infallible>(Event::default().data("[DONE]")),
                     };
                     let text = String::from_utf8_lossy(&bytes);
                     let mut last = None;
                     for line in text.lines() {
                         if line.is_empty() { continue; }
-                        last = Some(Ok::<_, Infallible>(Event::default().data(line.to_string())));
+                        // 后端 SSE 已经是 "data: ..." 格式，去掉前缀避免双重 data:
+                        let cleaned = line.strip_prefix("data: ").unwrap_or(line);
+                        if cleaned == "[DONE]" {
+                            last = Some(Ok::<_, Infallible>(Event::default().data("[DONE]")));
+                        } else {
+                            last = Some(Ok::<_, Infallible>(Event::default().data(cleaned.to_string())));
+                        }
                     }
                     last.unwrap_or_else(|| Ok(Event::default().data("")))
                 });
@@ -285,4 +296,12 @@ async fn ollama_show(
         },
         "name": model,
     }))
+}
+
+async fn generic_ok() -> Json<serde_json::Value> {
+    Json(serde_json::json!({}))
+}
+
+async fn version_handler() -> Json<serde_json::Value> {
+    Json(serde_json::json!({"version": "0.1.0"}))
 }
