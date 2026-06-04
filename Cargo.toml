@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Xingdu - LLM API Gateway with semantic cache, RAG, and multi-backend routing"
 license = "MIT"
-repository = "https://github.com/YOUR_USERNAME/xingdu"
+repository = "https://github.com/xiantuer/xingdu"
 readme = "README.md"
 
 
